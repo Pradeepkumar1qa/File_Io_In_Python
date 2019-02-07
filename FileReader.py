@@ -2,6 +2,8 @@ import  os
 import sqlite3
 from sqlite3 import Error
 
+#comment added to see merge conflict
+
 
 def create_connection(db_file):
     """ create a database connection to the SQLite database
