@@ -1,0 +1,174 @@
+import  os
+import sqlite3
+from sqlite3 import Error
+
+#comment added to see merge conflict
+path_for_package="C:\\Users\\Pradeep Kumar\\Desktop\\px_17_feb\\PXSelenium\\src\\test\\java\\com\\qait\\onboarding\\functional\\tests";
+path_for_sql_file="C:\\Users\\Pradeep Kumar\\Desktop\\px_17_feb\\PXSelenium\\src\\test\\resources\\testdata\\ONBOARDING\\onboarding.sq3"
+
+def create_connection(db_file):
+    """ create a database connection to the SQLite database
+        specified by the db_file
+    :param db_file: database file
+    :return: Connection object or None
+    """
+    try:
+        conn = sqlite3.connect(db_file)
+        return conn
+    except Error as e:
+        print(e)
+
+    return None
+
+
+def db_getmappingsforclass(filename,dbpath):
+    """
+    will return a dictionary having key as function name and value is all those test case id in stiring format which is mapped
+    to this particular funciton name.
+    for example {"test_step_1":'"tcid_1","tcid_2"'}
+    :param filename: filename is the name of file or classname for which dictionary  will be build
+    :param dbpath: path of sqlite file
+    :return: a Dictionary having function name as key and all those test case id which is mapped to this method as value
+    """
+    sql='select * from '+filename;
+    #print(sql)
+    dic = {}
+    try:
+        conn=create_connection(dbpath)
+        cor=conn.cursor()
+        cor.execute(sql)
+        names = [description[0] for description in cor.description]
+
+        rows = cor.fetchall()
+        teststep=0;
+        tcid=1
+        issue=2
+        teststep=names.index("teststep")
+        tcid=names.index("tcid");
+        for row in rows:
+            testcaseid=str(row[tcid]).replace("\n","")
+            if dic.keys().__contains__(row[teststep]):
+                dic[row[teststep]] = dic[row[teststep]] + ',' + '"' + testcaseid + '"'
+            else:
+                dic[row[teststep]] = '"' + str(testcaseid) + '"'
+    except Error as e:
+        print(e)
+
+    return dic
+
+
+
+# print(dic)
+# for k in dic.keys():
+#     print(k+"*********"+dic[k])
+
+
+
+def getName(line):
+    temp=line.strip().split(" ")[2]
+    temp=temp.replace('(',"")
+    temp=temp.replace(')',"")
+    temp=temp.strip();
+    # print(temp)
+    return temp;
+
+
+
+def modify_content(filename,dic):
+      """
+      will modify the content as per the mapping.will add a line @Dbmapper(testcasdid="") to funciton which is allready mapped to some id
+      :param filename: Name of file or class for which mapping is to be done
+      :param dic: dictionary having the key as function  name and value as all those test case id which is mapped to key function
+      :return: return a modified list after doing mapping of the function
+      """
+      funname=''
+      path=path_for_package+'\\'+filename
+      with open(path,'r') as fr:
+          l=fr.readlines();
+          # print(l);
+          counter=0
+
+          for i in range(len(l)):
+               if l[i].lstrip().startswith("@Test"):
+                        counter=i;
+                        while not (l[counter].lstrip().startswith('public void')):
+                             counter=counter+1
+                        funname=getName(l[counter])
+                        #print(funname+"_pradeep")
+                        if funname in dic.keys():
+                            #print('found method'+funname+"")
+                            l[i]='@DbMapper(testcaseid={'+dic[funname]+'})\n'+l[i]
+
+
+          return l;
+
+
+# l=modify_content("Quiz_With_Existing_Created_Multiple_Answer_Question_Test.java",dic)
+# print(l)
+
+def write_content(filename,l):
+    """
+    will write the content in file name after modification of content
+    :param filename: filename for which the mapping is going to be done
+    :param l: list of modified content
+    :return: Void
+    """
+    counter=0;
+    path=path_for_package+"\\"+filename
+    with open(path,'w') as fw:
+        for s in l:
+            if(counter==1 and True):
+                fw.write("import com.qait.annotation.DbMapper;")
+            fw.write(s)
+            counter=counter+1;
+        fw.flush()
+
+def remove_dbMapper_And_build_content(filename):
+        """
+        to support backward compatibility in case of any failure we need to remove all those dbmapper annotation from the file
+        :param filename:
+        :return:
+        """
+        path = path_for_package+"\\"+filename
+        with open(path, 'r') as fr:
+            l = fr.readlines();
+            # print(l);
+            counter = 0
+
+            for i in range(len(l)):
+                if l[i].lstrip().startswith("@DbMapper"):
+                  l[i]="";
+            return l;
+
+
+# write_content("Quiz_With_Existing_Created_Multiple_Answer_Question_Test.java",l)
+
+
+def write_annotation_to_all_those_step_which_is_all_ready_mapped(flag=True):
+    """
+    method will do the processing based on the flag parameter set if flag=True (default value) will annotated the method
+    and flag=False will remove all the dbmapper annotation from the function make the function original one
+    :param flag: default is True in order to remove the annotation you will have to make it False;
+    :return: Void
+    """
+    for subdir, dirname, file in os.walk(path_for_package):
+        path = path_for_sql_file
+        l=[]
+        #print(file)
+        for f in file:
+            dic = db_getmappingsforclass(f.replace('.java', ""), path)
+            #print(dic)
+            #print("*******************************************************************")
+            if len(dic.keys()) == 0: continue
+            if(flag):
+                l = modify_content(f, dic)
+            elif not flag:
+                l = remove_dbMapper_And_build_content(f)
+            #print(l)
+            write_content(f, l)
+            print("processing done for \t "+f)
+            # break;
+
+            # print(f+"done");
+
+write_annotation_to_all_those_step_which_is_all_ready_mapped()
