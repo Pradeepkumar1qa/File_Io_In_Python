@@ -95,11 +95,12 @@ def modify_content(filename,dic,path_for_package):
       funname=''
       path=path_for_package+'\\'+filename
       with open(path,'r',encoding="utf8") as fr:
-          l=fr.readlines();
+          l=fr.readlines()
           # print(l);
           counter=0
 
           for i in range(len(l)):
+
                if l[i].lstrip().startswith("@Test"):
                         counter=i;
                         while not (l[counter].lstrip().startswith('public void')):
@@ -139,8 +140,8 @@ def write_content(filename,l,path_for_package):
     path=path_for_package+"\\"+filename
     with open(path,'w',encoding="utf8") as fw:
         for s in l:
-            if(counter==1 and True):
-                fw.write("import com.qait.annotation.DbMapper;")
+            if(counter==1  and not (l[1].__contains__('import com.qait.annotation.DbMapper;'))):
+                fw.write("import com.qait.annotation.DbMapper;\n")
             fw.write(s)
             counter=counter+1;
         fw.flush()
